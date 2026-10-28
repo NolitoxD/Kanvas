@@ -1307,6 +1307,36 @@ def cmd_init(target_dir, install_plugin=True):
     print("\nDone. Open the folder in Obsidian and start planning!")
 
 
+BLANK_CANVAS = {
+    "nodes": [
+        {"id": "canvas-errors", "type": "text", "text": "## Errors\n✓ None", "x": -540, "y": -750, "width": 380, "height": 200, "color": "1"},
+        {"id": "legend", "type": "text", "text": "## Legend\n🔴 **Red** = To Do (ready)\n⬜ **Gray** = Blocked\n🟠 **Orange** = Doing\n🔵 **Cyan** = Ready to review\n🟢 **Green** = Done\n🟣 **Purple** = Proposed by agent", "x": -540, "y": -310, "width": 380, "height": 230, "color": "0"},
+        {"id": "canvas-warnings", "type": "text", "text": "## Warnings\n✓ None", "x": -540, "y": -530, "width": 380, "height": 200, "color": "3"},
+    ],
+    "edges": [],
+}
+
+
+def cmd_create(path):
+    """Create a new blank canvas (legend + errors/warnings panels) at path.
+
+    Unlike init, it only writes the .canvas file: it never copies CLAUDE.md,
+    AGENTS.md or RULES.md, so it is safe inside an existing vault.
+    """
+    if not path.endswith(".canvas"):
+        error(f"Canvas file must end in .canvas: {path}")
+    if os.path.exists(path):
+        error(f"File already exists: {path}")
+    parent = os.path.dirname(os.path.abspath(path))
+    if not os.path.isdir(parent):
+        error(f"Directory does not exist: {parent}")
+
+    template = os.path.join(os.path.dirname(os.path.abspath(__file__)), "examples", "blank.canvas")
+    canvas = load_canvas(template) if os.path.isfile(template) else BLANK_CANVAS
+    save_canvas(path, canvas)
+    print(f"Created blank canvas: {path}")
+
+
 def build_parser():
     """Build the argparse parser."""
     parser = argparse.ArgumentParser(
@@ -1315,6 +1345,8 @@ def build_parser():
     parser.add_argument("canvas_file", help="Path to the .canvas file")
 
     sub = parser.add_subparsers(dest="command", help="Command to run")
+
+    sub.add_parser("create", help="Create a new blank canvas at canvas_file")
 
     # Read-only
     sub.add_parser("status", help="Board overview")
@@ -1392,6 +1424,10 @@ def main():
         sys.exit(1)
 
     canvas_path = args.canvas_file
+    if args.command == "create":
+        cmd_create(canvas_path)
+        return
+
     canvas = load_canvas(canvas_path)
 
     # Read-only commands
